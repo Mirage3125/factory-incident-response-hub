@@ -26,7 +26,7 @@ NEXT_STAGE_GATE: GO
 - Added screenshot to `README.md`.
 - Cleaned frontend `dist` after production build.
 - Added Git remote `origin` with `git@github.com:Mirage3125/factory-incident-response-hub.git`.
-- Created initial commit `83bec0d0fd77f0d8a0afd104776dc418db00b952`.
+- Created initial publication commits on `main`.
 - Pushed local `main` to `origin/main`.
 
 ### Modified Or Added Files
@@ -55,9 +55,10 @@ NEXT_STAGE_GATE: GO
 | `cmd /c npm.cmd run build` | Passed. Production bundle built and then `frontend/dist` was removed because it is a generated artifact. |
 | `git branch -M main` | Passed. Initial local branch is `main`. |
 | `git remote add origin git@github.com:Mirage3125/factory-incident-response-hub.git` | Passed. Remote points to the user-specified SSH URL. |
-| `git commit -m "Initial Factory Incident Response Hub"` | Passed: `83bec0d0fd77f0d8a0afd104776dc418db00b952`. |
-| `git push -u origin main` | Passed. Remote `main` now tracks `origin/main`. |
-| `git ls-remote --heads origin main` | Passed: remote `main` points to `83bec0d0fd77f0d8a0afd104776dc418db00b952`. |
+| `git commit -m "Initial Factory Incident Response Hub"` | Passed. Initial project commit created. |
+| `git commit -m "Record GitHub publication status"` | Passed. Publication status record committed. |
+| `git push -u origin main` and `git push` | Passed. Remote `main` now tracks `origin/main`. |
+| `git ls-remote --heads origin main` | Passed. Remote `main` exists and points to the pushed local history. |
 
 ### Known Limits
 
