@@ -85,6 +85,7 @@ jobs:
         run: python -m compileall rpa-worker/rpa_worker rpa-worker/tests
       - name: RPA tests
         env:
+          PYTHONPATH: rpa-worker
           INTERNAL_SERVICE_TOKEN: ci-internal-token
           LEGACY_MES_URL: http://127.0.0.1:8300
           MES_DEMO_USERNAME: ci-demo

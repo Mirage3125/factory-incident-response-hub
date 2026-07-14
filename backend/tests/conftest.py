@@ -25,6 +25,11 @@ TABLES = [
 
 
 @pytest.fixture()
+def internal_token():
+    return get_settings().internal_service_token
+
+
+@pytest.fixture()
 async def db_session():
     database = get_database()
     async with database.session_factory() as session:

@@ -1,5 +1,51 @@
 # Implementation Status
 
+## GitHub Actions CI Hotfix And Release Prep
+
+Execution date: 2026-07-14
+
+CURRENT_STAGE_RESULT: PASS
+
+NEXT_STAGE_GATE: GO
+
+### Root Cause
+
+- GitHub Actions backend tests set `INTERNAL_SERVICE_TOKEN=ci-internal-token`, while several backend tests still used the local demo token `change-me-in-local-env`.
+- Frontend date formatting used the runner local timezone. GitHub-hosted Ubuntu runners use UTC, so a Shanghai-time assertion failed.
+- RPA CI tests installed dependencies but did not add `rpa-worker` to `PYTHONPATH`, so `import rpa_worker` failed.
+
+### Fix
+
+- Added a backend test fixture that reads the internal token from application settings.
+- Updated backend tests to use the configured token instead of the local demo default.
+- Fixed frontend date formatting to render with `Asia/Shanghai` explicitly.
+- Added `PYTHONPATH: rpa-worker` to the RPA GitHub Actions test step.
+
+### Modified Files
+
+- `.github/workflows/ci.yml`
+- `backend/tests/conftest.py`
+- `backend/tests/test_agent_stage3.py`
+- `backend/tests/test_api_stage2.py`
+- `backend/tests/test_rpa_stage5.py`
+- `backend/tests/test_workflow_stage4.py`
+- `frontend/src/lib/format.ts`
+- `docs/implementation-status.md`
+
+### Verification Commands And Results
+
+| Command | Result |
+|---|---|
+| `gh run view 29337686994 --repo Mirage3125/factory-incident-response-hub --log-failed` | Passed. Identified backend token mismatch, frontend timezone mismatch, and RPA import path failure. |
+| `docker compose build backend` | Passed. Rebuilt the backend image so container tests used the current source. |
+| `docker compose up -d backend` | Passed. Recreated backend with the rebuilt image. |
+| `docker compose exec -T -e INTERNAL_SERVICE_TOKEN=ci-internal-token backend python -m pytest -q` | Passed: 38 tests. |
+| `cmd /c npm.cmd test -- --run` | Passed: 5 files, 9 tests. |
+| `cmd /c npm.cmd run lint` | Passed. |
+| `cmd /c npm.cmd run build` | Passed. Production build completed. |
+| `docker compose exec -T rpa-worker python -m pytest -q /app/rpa-worker/tests` | Passed: 4 tests. |
+| `powershell -ExecutionPolicy Bypass -File .\scripts\check-docs.ps1` | Passed: 12 Markdown files checked. |
+
 ## README Chinese Introduction Update
 
 Execution date: 2026-07-14

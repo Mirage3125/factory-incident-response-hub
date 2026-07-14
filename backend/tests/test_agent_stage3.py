@@ -230,7 +230,7 @@ async def test_public_analyze_api_updates_incident_and_creates_audit_without_dup
 
 
 @pytest.mark.asyncio
-async def test_internal_agent_analyze_requires_token_and_visual_defect_is_p2(api_client):
+async def test_internal_agent_analyze_requires_token_and_visual_defect_is_p2(api_client, internal_token):
     created = await api_client.post(
         "/api/incidents",
         json={
@@ -247,7 +247,7 @@ async def test_internal_agent_analyze_requires_token_and_visual_defect_is_p2(api
     assert denied.status_code == 401
     allowed = await api_client.post(
         "/api/internal/agent/analyze",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"incident_id": incident_id},
     )
     assert allowed.status_code == 200

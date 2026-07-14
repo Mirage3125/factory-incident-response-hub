@@ -53,7 +53,7 @@ async def test_equipment_incident_work_order_and_dashboard_api(api_client):
 
 
 @pytest.mark.asyncio
-async def test_internal_token_and_resume_url_not_leaked(api_client):
+async def test_internal_token_and_resume_url_not_leaked(api_client, internal_token):
     incident = await api_client.post(
         "/api/incidents",
         json={
@@ -71,7 +71,7 @@ async def test_internal_token_and_resume_url_not_leaked(api_client):
 
     allowed = await api_client.post(
         "/api/internal/approvals/register",
-        headers={"x-internal-token": "change-me-in-local-env"},
+        headers={"x-internal-token": internal_token},
         json={"incident_id": incident_id, "resume_url": "http://n8n/resume/secret"},
     )
     assert allowed.status_code == 200

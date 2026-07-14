@@ -10,7 +10,7 @@ from factory_hub.config import get_settings
 
 
 @pytest.mark.asyncio
-async def test_approval_decision_does_not_leak_resume_url_and_records_unreachable_n8n(api_client, db_session):
+async def test_approval_decision_does_not_leak_resume_url_and_records_unreachable_n8n(api_client, db_session, internal_token):
     incident = await api_client.post(
         "/api/incidents",
         json={
@@ -24,7 +24,7 @@ async def test_approval_decision_does_not_leak_resume_url_and_records_unreachabl
     incident_id = incident.json()["incident"]["id"]
     registered = await api_client.post(
         "/api/internal/approvals/register",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"incident_id": incident_id, "resume_url": "http://127.0.0.1:9/webhook-waiting/secret-token"},
     )
     assert registered.status_code == 200
@@ -88,7 +88,7 @@ async def test_sla_escalation_scan_is_idempotent_for_same_level(api_client, db_s
 
 
 @pytest.mark.asyncio
-async def test_close_case_creates_template_knowledge_case_without_llm_key(api_client, db_session):
+async def test_close_case_creates_template_knowledge_case_without_llm_key(api_client, db_session, internal_token):
     incident = await api_client.post(
         "/api/incidents",
         json={
@@ -103,7 +103,7 @@ async def test_close_case_creates_template_knowledge_case_without_llm_key(api_cl
     incident_id = incident.json()["incident"]["id"]
     response = await api_client.post(
         "/api/internal/agent/close-case",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"incident_id": incident_id, "resolution": "Adjusted camera calibration and verified sample output."},
     )
     assert response.status_code == 200
@@ -118,10 +118,10 @@ async def test_close_case_creates_template_knowledge_case_without_llm_key(api_cl
 
 
 @pytest.mark.asyncio
-async def test_rpa_contract_rejects_unknown_work_order_without_fake_success(api_client, db_session):
+async def test_rpa_contract_rejects_unknown_work_order_without_fake_success(api_client, db_session, internal_token):
     response = await api_client.post(
         "/api/internal/rpa/work-orders",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"work_order_id": 12345, "reason": "MES API timeout"},
     )
     assert response.status_code == 404
@@ -132,10 +132,10 @@ async def test_rpa_contract_rejects_unknown_work_order_without_fake_success(api_
 
 
 @pytest.mark.asyncio
-async def test_internal_error_records_are_sanitized(api_client, db_session):
+async def test_internal_error_records_are_sanitized(api_client, db_session, internal_token):
     response = await api_client.post(
         "/api/internal/errors",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={
             "incident_id": None,
             "work_order_id": None,

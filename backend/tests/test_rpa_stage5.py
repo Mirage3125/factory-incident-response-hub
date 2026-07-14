@@ -7,7 +7,7 @@ from factory_hub.domain.models import RpaRun, WorkOrder
 
 
 @pytest.mark.asyncio
-async def test_backend_rpa_endpoint_updates_work_order_from_worker_success(api_client, db_session, monkeypatch):
+async def test_backend_rpa_endpoint_updates_work_order_from_worker_success(api_client, db_session, monkeypatch, internal_token):
     work_order = (await db_session.execute(select(WorkOrder).order_by(WorkOrder.id))).scalars().first()
 
     class FakeRpaClient:
@@ -22,7 +22,7 @@ async def test_backend_rpa_endpoint_updates_work_order_from_worker_success(api_c
 
         async def post(self, url, **kwargs):
             assert url == "http://rpa-worker:8200/internal/rpa/work-orders"
-            assert kwargs["headers"]["X-Internal-Token"] == "change-me-in-local-env"
+            assert kwargs["headers"]["X-Internal-Token"] == internal_token
             assert kwargs["json"]["work_order_id"] == work_order.id
             assert "title" in kwargs["json"]
             return Response(
@@ -42,7 +42,7 @@ async def test_backend_rpa_endpoint_updates_work_order_from_worker_success(api_c
 
     response = await api_client.post(
         "/api/internal/rpa/work-orders",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"work_order_id": work_order.id, "reason": "MES API 503"},
     )
 
@@ -60,7 +60,7 @@ async def test_backend_rpa_endpoint_updates_work_order_from_worker_success(api_c
 
 
 @pytest.mark.asyncio
-async def test_backend_rpa_endpoint_records_worker_failure_without_fake_external_id(api_client, db_session, monkeypatch):
+async def test_backend_rpa_endpoint_records_worker_failure_without_fake_external_id(api_client, db_session, monkeypatch, internal_token):
     work_order = (await db_session.execute(select(WorkOrder).order_by(WorkOrder.id))).scalars().first()
 
     class FakeRpaClient:
@@ -91,7 +91,7 @@ async def test_backend_rpa_endpoint_records_worker_failure_without_fake_external
 
     response = await api_client.post(
         "/api/internal/rpa/work-orders",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"work_order_id": work_order.id, "reason": "MES API 503"},
     )
 
@@ -108,7 +108,7 @@ async def test_backend_rpa_endpoint_records_worker_failure_without_fake_external
 
 
 @pytest.mark.asyncio
-async def test_backend_rpa_endpoint_sanitizes_worker_errors(api_client, db_session, monkeypatch):
+async def test_backend_rpa_endpoint_sanitizes_worker_errors(api_client, db_session, monkeypatch, internal_token):
     work_order = (await db_session.execute(select(WorkOrder).order_by(WorkOrder.id))).scalars().first()
 
     class FakeRpaClient:
@@ -139,7 +139,7 @@ async def test_backend_rpa_endpoint_sanitizes_worker_errors(api_client, db_sessi
 
     response = await api_client.post(
         "/api/internal/rpa/work-orders",
-        headers={"X-Internal-Token": "change-me-in-local-env"},
+        headers={"X-Internal-Token": internal_token},
         json={"work_order_id": work_order.id, "reason": "MES API 503"},
     )
 
