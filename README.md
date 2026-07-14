@@ -1,26 +1,26 @@
-# Factory Incident Response Hub
+# 制造业异常响应中心
 
-Factory Incident Response Hub is a local, Docker Compose based demo system for manufacturing incident handling. It shows how equipment alarms can move through deduplication, context lookup, agent-assisted analysis, deterministic severity rules, n8n workflow orchestration, human approval, work order creation, MES API fallback to Playwright RPA, and final knowledge capture.
+这是一个可以在本机用 Docker Compose 启动的制造业异常处理演示系统。它展示了设备报警从进入系统开始，如何完成去重、上下文查询、Agent 辅助分析、确定性严重等级判断、n8n 工作流编排、人工审批、工单创建、MES API 失败后切换到 Playwright RPA，以及最终沉淀为知识案例的完整闭环。
 
-The project is intentionally scoped for resume and interview demonstration. It does not connect to real PLCs, robots, production MES/ERP systems, enterprise chat, or physical controls.
+项目定位是简历和面试演示用的完整工程样例。它不会连接真实 PLC、机器人、生产 MES/ERP、企业聊天工具或任何物理设备控制系统。
 
-## Preview
+## 效果预览
 
-![Factory Incident Response Hub dashboard](docs/images/dashboard.png)
+![制造业异常响应中心看板](docs/images/dashboard.png)
 
-The dashboard screenshot above was captured from the running Docker Compose frontend against the live backend API.
+上图是从正在运行的 Docker Compose 前端中截取的真实页面，数据来自后端 API，不是静态 mock 图。
 
-## Business Value
+## 业务价值
 
-Manufacturing incident handling is often split across operators, spreadsheets, MES screens, maintenance teams, and ad hoc approvals. This system demonstrates a reliable response loop:
+制造现场的异常处理通常分散在操作员、Excel 表、MES 页面、维修团队和临时审批流程之间，容易出现响应慢、重复建单、过程不可追踪等问题。本项目演示了一套更可靠的异常响应流程：
 
-1. Capture and deduplicate incidents.
-2. Enrich them with equipment, batch, and maintenance context.
-3. Use an auditable analyzer for suggested causes and actions.
-4. Let deterministic rules decide final severity and approval needs.
-5. Orchestrate long-running workflow steps in n8n.
-6. Create work orders through API when possible and Playwright RPA only for technical API failures.
-7. Track SLA, timeline, notifications, RPA screenshots, and closure knowledge.
+1. 接收异常并识别重复报警。
+2. 补充设备、批次和维修历史上下文。
+3. 使用可审计的 Agent 分析可能原因和处理建议。
+4. 由确定性规则决定最终严重等级和是否需要审批。
+5. 用 n8n 编排长流程、人工等待和 SLA 升级。
+6. 优先通过 MES API 创建工单；只有技术故障时才降级使用 Playwright RPA。
+7. 追踪 SLA、处理时间线、通知、RPA 截图和结案知识。
 
 ## Architecture
 
