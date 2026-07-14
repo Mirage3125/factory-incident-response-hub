@@ -1,0 +1,86 @@
+{
+  "id": "wf-04-sla-escalation-monitor",
+  "name": "04 - SLA Escalation Monitor",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Cron scans overdue work orders. Backend guarantees idempotency per work_order_id + sla_level, so repeated scans do not duplicate same-level notifications.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "note-04",
+      "name": "Sticky Note - SLA Idempotency",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-520, -220]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 5 }
+          ]
+        }
+      },
+      "id": "cron-sla",
+      "name": "Cron - Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-520, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/sla/escalations/scan",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"level\":1}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "scan-sla",
+      "name": "Backend - Scan SLA Level 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/workflow-events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "event_type", "value": "N8N_SLA_SCAN_COMPLETED" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-sla-scan",
+      "name": "Backend - Record SLA Scan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [40, 40]
+    }
+  ],
+  "connections": {
+    "Cron - Every 5 Minutes": { "main": [[{ "node": "Backend - Scan SLA Level 1", "type": "main", "index": 0 }]] },
+    "Backend - Scan SLA Level 1": { "main": [[{ "node": "Backend - Record SLA Scan", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

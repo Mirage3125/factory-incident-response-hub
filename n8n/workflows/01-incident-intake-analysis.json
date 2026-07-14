@@ -1,0 +1,247 @@
+{
+  "id": "wf-01-incident-intake-analysis",
+  "name": "01 - Incident Intake and Analysis",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Input: manufacturing incident payload. Backend owns validation, dedupe, Agent analysis, rules and state changes. Branches: duplicate exits; P1 waits for approval; P2-P4 create work order.",
+        "height": 220,
+        "width": 360
+      },
+      "id": "note-01",
+      "name": "Sticky Note - Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-620, -260]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-intake-analysis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-incident",
+      "name": "Webhook - Incident Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/incidents",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify($json.body || $json)}}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "create-incident",
+      "name": "Backend - Create or Dedupe Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-360, 40]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "duplicate-is-true",
+              "leftValue": "={{$json.duplicate}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-duplicate",
+      "name": "IF - Duplicate Incident",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-100, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/workflow-events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.original_incident_id}}" },
+            { "name": "event_type", "value": "N8N_DUPLICATE_EXIT" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-duplicate",
+      "name": "Backend - Record Duplicate Exit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, -120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/agent/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.incident.id}}" }
+          ]
+        },
+        "options": { "timeout": 20000 }
+      },
+      "id": "analyze-incident",
+      "name": "Backend - Agent Analyze and Rule Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 120]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "severity-is-p1",
+              "leftValue": "={{$json.final_severity}}",
+              "rightValue": "P1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-p1",
+      "name": "IF - Requires P1 Approval",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "target", "value": "ops-manager" },
+            { "name": "message", "value": "P1 incident requires approval" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "notify-p1",
+      "name": "Backend - Notify P1 Approval Required",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 20]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/work-orders/create",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.incident_id}}" },
+            { "name": "title", "value": "={{$json.agent_output.summary}}" },
+            { "name": "description", "value": "={{$json.agent_output.recommended_actions.join('; ')}}" },
+            { "name": "priority", "value": "={{$json.final_severity}}" },
+            { "name": "creation_method", "value": "API" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "create-work-order",
+      "name": "Backend - Create Work Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond - Workflow Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [980, 120]
+    }
+  ],
+  "connections": {
+    "Webhook - Incident Intake": { "main": [[{ "node": "Backend - Create or Dedupe Incident", "type": "main", "index": 0 }]] },
+    "Backend - Create or Dedupe Incident": { "main": [[{ "node": "IF - Duplicate Incident", "type": "main", "index": 0 }]] },
+    "IF - Duplicate Incident": {
+      "main": [
+        [{ "node": "Backend - Record Duplicate Exit", "type": "main", "index": 0 }],
+        [{ "node": "Backend - Agent Analyze and Rule Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Backend - Record Duplicate Exit": { "main": [[{ "node": "Respond - Workflow Result", "type": "main", "index": 0 }]] },
+    "Backend - Agent Analyze and Rule Decision": { "main": [[{ "node": "IF - Requires P1 Approval", "type": "main", "index": 0 }]] },
+    "IF - Requires P1 Approval": {
+      "main": [
+        [{ "node": "Backend - Notify P1 Approval Required", "type": "main", "index": 0 }],
+        [{ "node": "Backend - Create Work Order", "type": "main", "index": 0 }]
+      ]
+    },
+    "Backend - Notify P1 Approval Required": { "main": [[{ "node": "Respond - Workflow Result", "type": "main", "index": 0 }]] },
+    "Backend - Create Work Order": { "main": [[{ "node": "Respond - Workflow Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

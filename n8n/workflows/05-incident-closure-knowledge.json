@@ -1,0 +1,77 @@
+{
+  "id": "wf-05-incident-closure-knowledge",
+  "name": "05 - Incident Closure and Knowledge Case",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Closure workflow. Backend creates a template knowledge case when no model key is available and records the audit event. No LLM call is required in Stage 4.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "note-05",
+      "name": "Sticky Note - Closure Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-520, -220]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "incident-closure-knowledge",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-close",
+      "name": "Webhook - Close Incident",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-520, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/agent/close-case",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.body.incident_id || $json.incident_id}}" },
+            { "name": "resolution", "value": "={{$json.body.resolution || $json.resolution}}" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "create-knowledge",
+      "name": "Backend - Create Knowledge Case",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 40]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "respond-05",
+      "name": "Respond - Knowledge Case",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [40, 40]
+    }
+  ],
+  "connections": {
+    "Webhook - Close Incident": { "main": [[{ "node": "Backend - Create Knowledge Case", "type": "main", "index": 0 }]] },
+    "Backend - Create Knowledge Case": { "main": [[{ "node": "Respond - Knowledge Case", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

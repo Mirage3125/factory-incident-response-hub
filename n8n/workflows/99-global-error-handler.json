@@ -1,0 +1,95 @@
+{
+  "id": "wf-99-global-error-handler",
+  "name": "99 - Global Error Handler",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Global workflow error sink. Backend sanitizes secrets before storing workflow error events. Use this as Error Workflow in n8n settings.",
+        "height": 200,
+        "width": 360
+      },
+      "id": "note-99",
+      "name": "Sticky Note - Error Handling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-520, -220]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-520, 40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "global-error-handler-test",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-error-test",
+      "name": "Webhook - Test Error Ingest",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-520, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/errors",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "error_code", "value": "N8N_WORKFLOW_ERROR" },
+            { "name": "error_message", "value": "={{($json.error && $json.error.message) ? $json.error.message : JSON.stringify($json)}}" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-error",
+      "name": "Backend - Record Sanitized Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-240, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/notifications",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"target\":\"workflow-admin\",\"message\":\"n8n workflow error recorded\",\"payload\":{\"source\":\"99-global-error-handler\"}}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "notify-admin",
+      "name": "Backend - Notify Workflow Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [40, 40]
+    }
+  ],
+  "connections": {
+    "Error Trigger": { "main": [[{ "node": "Backend - Record Sanitized Error", "type": "main", "index": 0 }]] },
+    "Webhook - Test Error Ingest": { "main": [[{ "node": "Backend - Record Sanitized Error", "type": "main", "index": 0 }]] },
+    "Backend - Record Sanitized Error": { "main": [[{ "node": "Backend - Notify Workflow Admin", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

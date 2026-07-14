@@ -1,0 +1,153 @@
+{
+  "id": "wf-02-critical-incident-approval",
+  "name": "02 - Critical Incident Human Approval",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "P1 approval workflow. The Wait node owns long-running pause. Backend stores the resume URL and public approval APIs proxy resume without exposing it.",
+        "height": 220,
+        "width": 360
+      },
+      "id": "note-02",
+      "name": "Sticky Note - Approval Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-620, -260]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "critical-incident-approval",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-p1",
+      "name": "Webhook - Start P1 Approval",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-620, 20]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/approvals/register",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.body.incident_id || $json.incident_id}}" },
+            { "name": "resume_url", "value": "={{$execution.resumeUrl}}" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "register-resume",
+      "name": "Backend - Register Protected Resume URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-340, 20]
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-approval",
+      "name": "Wait - Human Approval Resume",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [-60, 20]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "APPROVED"
+            }
+          ]
+        }
+      },
+      "id": "if-approved",
+      "name": "IF - Approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 20]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/workflow-events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.incident_id}}" },
+            { "name": "event_type", "value": "N8N_APPROVAL_APPROVED" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-approved",
+      "name": "Backend - Record Approved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/workflow-events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_id", "value": "={{$json.incident_id}}" },
+            { "name": "event_type", "value": "N8N_APPROVAL_REJECTED" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-rejected",
+      "name": "Backend - Record Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 140]
+    }
+  ],
+  "connections": {
+    "Webhook - Start P1 Approval": { "main": [[{ "node": "Backend - Register Protected Resume URL", "type": "main", "index": 0 }]] },
+    "Backend - Register Protected Resume URL": { "main": [[{ "node": "Wait - Human Approval Resume", "type": "main", "index": 0 }]] },
+    "Wait - Human Approval Resume": { "main": [[{ "node": "IF - Approved", "type": "main", "index": 0 }]] },
+    "IF - Approved": {
+      "main": [
+        [{ "node": "Backend - Record Approved", "type": "main", "index": 0 }],
+        [{ "node": "Backend - Record Rejected", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

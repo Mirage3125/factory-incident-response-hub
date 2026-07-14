@@ -1,0 +1,64 @@
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+playwright-report/
+test-results/
+.nyc_output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs and runtime artifacts
+*.log
+logs/
+artifacts/
+rpa_artifacts/
+screenshots/
+*.sqlite
+*.sqlite3
+*.db
+tmp/
+temp/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Docker override files
+docker-compose.override.yml
+
+# n8n local runtime data; workflow JSON is intentionally tracked.
+.n8n/
+n8n/.n8n/
+n8n/local-data/
+n8n/credentials/
+
+# Local reports and generated acceptance outputs.
+docs/generated/
+acceptance-output/

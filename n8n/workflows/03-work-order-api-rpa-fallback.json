@@ -1,0 +1,241 @@
+{
+  "id": "wf-03-work-order-api-rpa-fallback",
+  "name": "03 - Work Order API with RPA Fallback",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Stage 5 contract: MES API 2xx saves the external work order through backend; MES 4xx is a business error and does not call RPA; MES 5xx, connection errors, and timeouts call the RPA Worker through backend.",
+        "height": 240,
+        "width": 420
+      },
+      "id": "note-03",
+      "name": "Sticky Note - MES and RPA Contract",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-860, -300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "work-order-api-rpa-fallback",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-wo",
+      "name": "Webhook - Create External Work Order",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-860, 40]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.MES_API_URL || 'http://legacy-mes:8300/api/work-orders'}}",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "incident_no", "value": "={{$json.body.incident_no}}" },
+            { "name": "equipment_code", "value": "={{$json.body.equipment_code}}" },
+            { "name": "title", "value": "={{$json.body.title}}" },
+            { "name": "priority", "value": "={{$json.body.priority}}" },
+            { "name": "description", "value": "={{$json.body.description}}" },
+            { "name": "assigned_team", "value": "={{$json.body.assigned_team || 'maintenance'}}" }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "response": { "fullResponse": true },
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "call-mes",
+      "name": "MES API - Create Work Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-580, 40],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "mes-technical-failure",
+              "leftValue": "={{Number($json.statusCode || $json.error?.status || $json.error?.statusCode || 0)}}",
+              "rightValue": 500,
+              "operator": { "type": "number", "operation": "gte" }
+            },
+            {
+              "id": "mes-connection-failure",
+              "leftValue": "={{Boolean($json.error?.code && !($json.error?.status || $json.error?.statusCode))}}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "or"
+        }
+      },
+      "id": "if-technical-failure",
+      "name": "IF - Technical Failure Allows RPA",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-300, 40]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "mes-api-success",
+              "leftValue": "={{Boolean($json.body?.external_id || $json.external_id)}}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-api-success",
+      "name": "IF - MES API Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-40, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/work-orders/external-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "work_order_id", "value": "={{$node['Webhook - Create External Work Order'].json.body.work_order_id}}" },
+            { "name": "external_id", "value": "={{$json.body?.external_id || $json.external_id}}" },
+            { "name": "creation_method", "value": "API" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "save-api-result",
+      "name": "Backend - Save MES API Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 60]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/rpa/work-orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "work_order_id", "value": "={{$node['Webhook - Create External Work Order'].json.body.work_order_id}}" },
+            { "name": "reason", "value": "MES API technical failure" }
+          ]
+        },
+        "options": { "timeout": 60000, "ignoreResponseCode": true }
+      },
+      "id": "call-rpa",
+      "name": "Backend - Call RPA Worker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, -160],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/api/internal/errors",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Internal-Token", "value": "={{$env.INTERNAL_SERVICE_TOKEN}}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            { "name": "work_order_id", "value": "={{$node['Webhook - Create External Work Order'].json.body.work_order_id}}" },
+            { "name": "error_code", "value": "MES_BUSINESS_ERROR" },
+            { "name": "error_message", "value": "MES returned non-retryable business error" }
+          ]
+        },
+        "options": { "timeout": 10000 }
+      },
+      "id": "record-business-error",
+      "name": "Backend - Record Business Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json)}}",
+        "options": {}
+      },
+      "id": "respond-03",
+      "name": "Respond - Work Order Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [580, 60]
+    }
+  ],
+  "connections": {
+    "Webhook - Create External Work Order": {
+      "main": [[{ "node": "MES API - Create Work Order", "type": "main", "index": 0 }]]
+    },
+    "MES API - Create Work Order": {
+      "main": [
+        [{ "node": "IF - Technical Failure Allows RPA", "type": "main", "index": 0 }],
+        [{ "node": "IF - Technical Failure Allows RPA", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF - Technical Failure Allows RPA": {
+      "main": [
+        [{ "node": "Backend - Call RPA Worker", "type": "main", "index": 0 }],
+        [{ "node": "IF - MES API Success", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF - MES API Success": {
+      "main": [
+        [{ "node": "Backend - Save MES API Result", "type": "main", "index": 0 }],
+        [{ "node": "Backend - Record Business Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Backend - Save MES API Result": { "main": [[{ "node": "Respond - Work Order Result", "type": "main", "index": 0 }]] },
+    "Backend - Call RPA Worker": { "main": [[{ "node": "Respond - Work Order Result", "type": "main", "index": 0 }]] },
+    "Backend - Record Business Error": { "main": [[{ "node": "Respond - Work Order Result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "pinData": {}
+}

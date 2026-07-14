@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: factory_incidents
+          POSTGRES_USER: factory
+          POSTGRES_PASSWORD: factory_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U factory -d factory_incidents"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql+asyncpg://factory:factory_dev_password@localhost:5432/factory_incidents
+      INTERNAL_SERVICE_TOKEN: ci-internal-token
+      LLM_DEMO_MODE: "true"
+      LLM_API_KEY: ""
+      LLM_MODEL: demo-analyzer
+      CORS_ORIGINS: http://localhost:3100
+      TIMEZONE: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend
+        run: python -m pip install -e ".[test]"
+      - name: Backend syntax check
+        run: python -m compileall backend/src backend/tests
+      - name: Alembic upgrade
+        run: alembic upgrade head
+      - name: Seed idempotency
+        run: |
+          python -m factory_hub.seed
+          python -m factory_hub.seed
+      - name: Backend tests
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend lint test build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install frontend
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test -- --run
+      - name: Build
+        run: npm run build
+
+  rpa-worker:
+    name: RPA unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install RPA worker test dependencies
+        run: python -m pip install -r rpa-worker/requirements.txt
+      - name: RPA syntax check
+        run: python -m compileall rpa-worker/rpa_worker rpa-worker/tests
+      - name: RPA tests
+        env:
+          INTERNAL_SERVICE_TOKEN: ci-internal-token
+          LEGACY_MES_URL: http://127.0.0.1:8300
+          MES_DEMO_USERNAME: ci-demo
+          MES_DEMO_PASSWORD: ci-password-placeholder
+          RPA_HEADLESS: "true"
+        run: python -m pytest -q rpa-worker/tests
+
+  docs:
+    name: Documentation checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Markdown links and fences
+        shell: pwsh
+        run: .\scripts\check-docs.ps1
